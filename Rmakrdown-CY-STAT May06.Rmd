@@ -249,5 +249,5 @@ Lefkios Paikousis
 Statistician    
 [lefkios@improvast.com](lefkios@improvast.com)    
 
-You can find the slides at [my Github](www.github.com) and [in this link](https://rpubs.com/lefkios_paikousis/rmarkdown)
+You can find the slides at [my Github](https://github.com/lefkiospaikousis/Conference-May2022)
 
