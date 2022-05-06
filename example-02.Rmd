@@ -1,0 +1,137 @@
+---
+author: "Lefkios Paikousis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+  word_document: default
+  pdf_document:
+    latex_engine: xelatex
+params:
+  year:
+    value: 2017
+    choices: [2017, 2018, 2019, 2020]
+  district: 
+    value: ΛΕΥΚΩΣΙΑ
+    choices: [Όλες οι επαρχίες, ΛΕΥΚΩΣΙΑ, ΑΜΜΟΧΩΣΤΟΣ, ΛΑΡΝΑΚΑ, ΛΕΜΕΣΟΣ, ΠΑΦΟΣ]
+title: '`r paste0("Mortage Value - ", params$district)`'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+
+library(knitr)
+library(tidyverse)
+
+Sys.setlocale(locale = "greek")
+
+```
+
+
+```{r data, include=FALSE}
+# Data import
+
+# path <- "https://www.data.gov.cy/node/3886/download"
+path <- switch (params$year,
+                "2017" = "https://www.data.gov.cy/node/3886/download",
+                "2018" = "https://www.data.gov.cy/node/3888/download",
+                "2019" = "https://www.data.gov.cy/node/4333/download",
+                "2020" = "https://www.data.gov.cy/node/4626/download"
+)
+
+dta <- read_csv(path, col_types = c("c", "f", "n", "n"))
+
+
+show_bar <- TRUE
+
+if(params$district != "Όλες οι επαρχίες"){
+  
+  show_bar <- FALSE
+  
+  dta <- dta %>% 
+    filter(DISTRICT == params$district)
+}
+
+### Clean the dataset
+
+# MONTH is coming in as TEXT. We need it as `Date` format
+
+dta <- dta %>% 
+  mutate(date = lubridate::my(MONTH)) 
+
+mortage_year <- unique(lubridate::year(dta$date))
+
+```
+
+
+### Data - Year `r mortage_year`
+
+These are data for mortage values for year `r mortage_year`.    
+
+
+The raw data can be downloaded directly from [here](`r path`)
+
+You can also see the rest of the datasets at the [data.gov.cy](https://www.data.gov.cy/dataset/%CF%83%CF%84%CE%B1%CF%84%CE%B9%CF%83%CF%84%CE%B9%CE%BA%CE%AC-%CF%85%CF%80%CE%BF%CE%B8%CE%B7%CE%BA%CF%8E%CE%BD-%CE%B1%CE%BA%CE%B9%CE%BD%CE%AE%CF%84%CF%89%CE%BD) website
+
+### Descriptives
+
+
+```{r by_district}
+
+by_district <- dta %>% 
+  group_by(DISTRICT) %>% 
+  summarise(
+    'Total mortgages' = sum(Mortgages),
+    'Total Value' = sum(`Total Amount`),
+    'Value Per mortage' = sum(`Total Amount`)/ sum(Mortgages)
+  ) %>% 
+  arrange(desc(`Total Value`))
+
+
+by_district %>% 
+  kable(
+    format.args = list(big.mark = ',')
+    , caption = paste0("Total Mortage Value - Year ", mortage_year)
+  ) 
+
+
+```
+
+
+```{r bar_plot, eval = show_bar}
+
+by_district %>% 
+  mutate(DISTRICT = fct_reorder(DISTRICT, `Total Value`)) %>% 
+  ggplot(
+    aes(DISTRICT, `Total Value`)
+  ) +
+  geom_col(width = 0.5, fill = "#4d6d82")+
+  coord_flip()+
+  #scale_y_continuous(labels=scales::dollar_format())+
+  scale_y_continuous(labels=function(x) paste0(x/ 1000000, "M"))+
+  theme_minimal()+
+  labs(
+  x = "", y = "",
+  title = paste0("Total Mortage Value (€) by Distict - Year ", mortage_year)
+  )
+
+```
+
+### A Line plot
+
+```{r line_plot, fig.width=9}
+
+dta %>% 
+  ggplot(
+    aes(date, `Total Amount`, colour = DISTRICT)
+  )+
+  geom_line()+
+  scale_y_continuous(labels=function(x) paste0(x/ 1000000, "M"))+
+  theme_minimal()+
+  labs(
+    x = "", y = "",
+    title = paste0("Monthly Total Mortage Value (€) ", params$district, " - ", mortage_year)
+  )
+
+```
+

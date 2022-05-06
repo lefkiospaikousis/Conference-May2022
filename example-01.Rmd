@@ -1,0 +1,119 @@
+---
+title: "Mortage Value in Cyprus"
+author: "Lefkios Paikousis"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+  pdf_document:
+    latex_engine: xelatex
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(knitr)
+library(palmerpenguins)
+
+library(tidyverse)
+
+Sys.setlocale(locale = "greek")
+
+```
+
+```{r read_data, include=TRUE}
+
+path <- "https://www.data.gov.cy/node/3886/download"
+
+dta <- read_csv(path, col_types = c("c", "f", "n", "n"))
+
+# MONTH is coming in as TEXT. We need it as `Date` format
+
+dta$date <- lubridate::my(dta$MONTH)
+
+mortage_year <- unique(lubridate::year(dta$date))
+
+max_tbl <- dta %>% filter(`Total Amount` == max(`Total Amount`))
+
+```
+
+### Data - Year `r mortage_year`
+
+These are data for mortage values for year `r mortage_year` in Cyprus.
+
+The raw data can be downloaded directly from [here](%60r%20path%60)
+
+You can also see the rest of the datasets at the [data.gov.cy](https://www.data.gov.cy/dataset/%CF%83%CF%84%CE%B1%CF%84%CE%B9%CF%83%CF%84%CE%B9%CE%BA%CE%AC-%CF%85%CF%80%CE%BF%CE%B8%CE%B7%CE%BA%CF%8E%CE%BD-%CE%B1%CE%BA%CE%B9%CE%BD%CE%AE%CF%84%CF%89%CE%BD) website
+
+
+### Explore the raw data
+
+```{r}
+DT::datatable(dta)
+```
+
+
+### Descriptives
+
+The biggest total mortage value **(`r format(max_tbl[["Total Amount"]], big.mark   = ",")` Euros)** was observed in `r max_tbl$DISTRICT`, in `r lubridate::month(max_tbl$date, label = TRUE, abbr =FALSE)`.
+
+```{r by_district}
+
+by_district <- dta %>% 
+  group_by(DISTRICT) %>% 
+  summarise(
+    'Total mortgages' = sum(Mortgages),
+    'Total Value' = sum(`Total Amount`),
+    'Value Per mortage' = sum(`Total Amount`)/ sum(Mortgages)
+  ) %>% 
+  arrange(desc(`Total Value`))
+
+
+by_district %>% 
+  kable(
+    format.args = list(big.mark = ',')
+    , caption = paste0("Total Value (€) by District - Year ", mortage_year)
+  ) 
+
+
+```
+
+### A bar plot
+
+```{r bar_plot}
+
+by_district %>% 
+  mutate(DISTRICT = fct_reorder(DISTRICT, `Total Value`)) %>% 
+  ggplot(
+    aes(DISTRICT, `Total Value`)
+  ) +
+  geom_col(width = 0.5, fill = "#4d6d82")+
+  coord_flip()+
+  #scale_y_continuous(labels=scales::dollar_format())+
+  scale_y_continuous(labels=function(x) paste0(x/ 1000000, "M"))+
+  theme_minimal()+
+  labs(
+  x = "", y = "",
+  title = paste0("Total Mortage Value (€) by Distict - Year ", mortage_year)
+  )
+
+```
+
+### A Line plot
+
+```{r line_plot, fig.width=9}
+
+dta %>% 
+  ggplot(
+    aes(date, `Total Amount`, colour = DISTRICT)
+    )+
+  geom_line()+
+  scale_y_continuous(labels=function(x) paste0(x/ 1000000, "M"))+
+  theme_minimal()+
+  labs(
+  x = "", y = "",
+  title = paste0("Total Mortage Value (€) by Distict - Year ", mortage_year)
+  )
+
+```
